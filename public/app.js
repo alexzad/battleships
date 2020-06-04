@@ -13,7 +13,7 @@ const Redirect = window.ReactRouterDOM.Redirect;
 class App extends React.Component {
     constructor(props) {
         super(props);
-        this.state = { user: firebase.auth().currentUser };
+        this.state = { user: firebase.auth().currentUser, games: [] };
         this.createGame = this.createGame.bind(this);
         this.onAuthStateChanged = this.onAuthStateChanged.bind(this);          
         firebase.auth().onAuthStateChanged(this.onAuthStateChanged); 
@@ -21,22 +21,47 @@ class App extends React.Component {
 
     onAuthStateChanged(user) {
         this.setState({user : user});
+        let that = this;
+        db.collection('games').where("host", "==", user.displayName).get().then(q => {
+            let games = q.docs.map(g => g.id);
+            that.setState({games: games});
+        });
     } 
 
     createGame() {
-        db.collection('games').add({
-            createdBy: this.state.user.displayName,
-            ts: firebase.firestore.FieldValue.serverTimestamp()
+        let currentUser = this.state.user.displayName;
+        db.collection('maps').add({
+            ts: firebase.firestore.FieldValue.serverTimestamp(),
+            owner: currentUser,
+            map: []
         }).then(result => {
-            this.props.history.push('/game/' + result.id);
-        });
+                db.collection('games').add({
+                ts: firebase.firestore.FieldValue.serverTimestamp(),
+                host: currentUser,
+                hostMap: result.id,
+                guest: null,
+                guestMap: null,
+                moves: []
+            }).then(result => {
+                this.props.history.push('/games/' + result.id);
+            });
+        });       
+    }
+
+    getRandomInt(min, max) {
+        min = Math.ceil(min);
+        max = Math.floor(max);
+        return Math.floor(Math.random() * (max - min + 1)) + min; 
     }
 
     render() {
         return (
             <div>
                 <Login user={this.state.user} />
-                <br/>{this.state.user ? <button onClick={this.createGame}>Create New Game</button> : "Please login" }
+                <br/>{this.state.user ? <button onClick={this.createGame} key="btn">Create New Game</button> : "Please login" }
+                <ul>
+                    {this.state.user ? this.state.games.map(i => (<li key={i}><Link to={"/games/"+i}>{i}</Link></li>)) : "" }
+                </ul>
             </div>
         );
     }
@@ -73,13 +98,47 @@ class Login extends React.Component {
 class Game extends React.Component {
     constructor(props) {
         super(props);
-        this.state = { user: null };
+        this.state = { user: {} };
+        this.onAuthStateChanged = this.onAuthStateChanged.bind(this);          
+        this.gameChanged = this.gameChanged.bind(this);          
+        firebase.auth().onAuthStateChanged(this.onAuthStateChanged); 
     }
+
+    gameChanged(game) {
+
+    }
+
+    onAuthStateChanged(user) {
+        this.setState({user : user});
+
+        db.collection('games').doc(this.props.match.params.id).get().then(g => {
+            var data = g.data();
+            if(data.host != user.displayName && !data.guestMap) {
+                db.collection('maps').add({
+                    ts: firebase.firestore.FieldValue.serverTimestamp(),
+                    owner: user.displayName,
+                    map: []
+                }).then(m => {
+                    db.collection('games').doc(this.props.match.params.id).set({
+                        guest: user.displayName,
+                        guestMap: m.id,
+                    }, { merge: true }).then(result => {
+        
+                    });
+                });
+            }
+        });
+
+        db.collection('games').doc(this.props.match.params.id).onSnapshot(this.gameChanged);
+    } 
     
     render() {
         return (
-            <div>Game: {this.props.match.params.id}</div>
-
+            <div>
+                <div><Link to="/">Back to lobby</Link></div>
+                <div>Game: {this.props.match.params.id}</div>
+                <div>Palyer: {this.state.user.displayName}</div>
+            </div>
         );
     }
 }
@@ -89,7 +148,7 @@ ReactDOM.render((
         <div>
         <Switch>
             <Route path="/" exact component={App}/>
-            <Route path="/game/:id" component={Game}/>
+            <Route path="/games/:id" component={Game}/>
         </Switch>
         </div>
     </Router>
