@@ -1,0 +1,33 @@
+:root {
+    --cell-size: 30px;
+    --grid-cell-size: 31px;
+}
+  
+a {
+    text-decoration: none;
+}
+
+div.cell {
+    width: var(--cell-size);
+    height: var(--cell-size);
+    font: 15px courier new;
+    color: white;
+}
+
+div.container {
+    display: grid;
+    grid-template-columns: repeat(10, var(--grid-cell-size));
+    grid-template-rows: repeat(10, var(--grid-cell-size));
+}
+
+.color-0 {
+    background: blue;
+}
+
+.color-9 {
+    background: purple;
+}
+
+.color-1, .color-2, .color-3, .color-4, .color-5 {
+    background: silver;
+}

@@ -121,14 +121,17 @@ class Login extends React.Component {
 class Game extends React.Component {
     constructor(props) {
         super(props);
-        this.state = { user: {} };
+        this.state = { user: {}, map: EMPTY_MAP };
         this.onAuthStateChanged = this.onAuthStateChanged.bind(this);          
         this.gameChanged = this.gameChanged.bind(this);          
+        this.cellClick = this.cellClick.bind(this);
         firebase.auth().onAuthStateChanged(this.onAuthStateChanged); 
     }
 
     gameChanged(game) {
+        let d = game.data();
 
+        this.setState({ game: d });
     }
 
     onAuthStateChanged(user) {
@@ -140,7 +143,7 @@ class Game extends React.Component {
                 db.collection('maps').add({
                     ts: firebase.firestore.FieldValue.serverTimestamp(),
                     owner: user.displayName,
-                    map: EMPTY_MAP
+                    map: this.state.map
                 }).then(m => {
                     db.collection('games').doc(this.props.match.params.id).set({
                         guest: user.displayName,
@@ -154,6 +157,59 @@ class Game extends React.Component {
 
         db.collection('games').doc(this.props.match.params.id).onSnapshot(this.gameChanged);
     } 
+
+    cellClick(i) {
+        if(this.state.map[i] == 0) {
+            const allowedNeighbours = [+1, -1, +10, -10];
+            const blockedNeighbours = [+9, +11, -9, -11];
+            let c = 1 + allowedNeighbours.reduce((a, m) => {
+                if(i + m >= 0 
+                    && i + m < 100 
+                    && this.state.map[i + m] != 9
+                    && (
+                        (i + m) % 10 == i % 10 
+                        || Math.floor((i + m) / 10) == Math.floor(i / 10)
+                    ) 
+                ) {
+                    return a += this.state.map[i + m];
+                } else {
+                    return a;
+                }
+            }, 0);
+            if(c > 4) {
+                return;
+            }
+            this.fillRecursively(this.state.map, i, c)
+            blockedNeighbours.forEach(m => {
+                if(i + m >= 0 
+                    && i + m < 100
+                    && Math.abs((i + m) % 10 - i % 10) == 1
+                ) {
+                    this.state.map[i + m] = 9
+                }
+            });
+            this.setState({map: this.state.map});
+        }
+    }
+
+    fillRecursively(map, i, c) {
+        const allowedNeighbours = [+1, -1, +10, -10];
+        map[i] = c;
+        allowedNeighbours.forEach(m => {
+            if(i + m >= 0 
+                && i + m < 100 
+                && map[i + m] > 0 
+                && map[i + m] < 9
+                && map[i + m] != c
+                && (
+                    (i + m) % 10 == i % 10 
+                    || Math.floor((i + m) / 10) == Math.floor(i / 10)
+                ) 
+            ) {
+                this.fillRecursively(map, i + m, c);
+            }
+        });
+    }
     
     render() {
         return (
@@ -161,6 +217,13 @@ class Game extends React.Component {
                 <div><Link to="/">Back to lobby</Link></div>
                 <div>Game: {this.props.match.params.id}</div>
                 <div>Palyer: {this.state.user.displayName}</div>
+                <div className="container">
+                    {this.state.map.map((c, i) => {
+                        return (
+                            <div className={"cell color-"+c} onClick={() => this.cellClick(i)} key={i}>{c}</div>
+                        );
+                    })}
+                </div>
             </div>
         );
     }
