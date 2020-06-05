@@ -10,6 +10,19 @@ const Prompt =  window.ReactRouterDOM.Prompt;
 const Switch = window.ReactRouterDOM.Switch;
 const Redirect = window.ReactRouterDOM.Redirect;
 
+const EMPTY_MAP = [
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+];
+
 class App extends React.Component {
     constructor(props) {
         super(props);
@@ -22,8 +35,18 @@ class App extends React.Component {
     onAuthStateChanged(user) {
         this.setState({user : user});
         let that = this;
-        db.collection('games').where("host", "==", user.displayName).get().then(q => {
-            let games = q.docs.map(g => g.id);
+        Promise.all([
+            db.collection('games').where("host", "==", user.displayName).get(),
+            db.collection('games').where("guest", "==", user.displayName).get()
+        ]).then(q => {
+            let games = q[0].docs.concat(q[1].docs).map(g => {
+                let d = g.data();
+                return {
+                    id: g.id, 
+                    host: d.host,
+                    guest: d.guest
+                };
+            });
             that.setState({games: games});
         });
     } 
@@ -33,7 +56,7 @@ class App extends React.Component {
         db.collection('maps').add({
             ts: firebase.firestore.FieldValue.serverTimestamp(),
             owner: currentUser,
-            map: []
+            map: EMPTY_MAP
         }).then(result => {
                 db.collection('games').add({
                 ts: firebase.firestore.FieldValue.serverTimestamp(),
@@ -60,7 +83,7 @@ class App extends React.Component {
                 <Login user={this.state.user} />
                 <br/>{this.state.user ? <button onClick={this.createGame} key="btn">Create New Game</button> : "Please login" }
                 <ul>
-                    {this.state.user ? this.state.games.map(i => (<li key={i}><Link to={"/games/"+i}>{i}</Link></li>)) : "" }
+                    {this.state.user ? (this.state.games.map(g => (<li key={g.id}><Link to={"/games/"+g.id}>game: {g.id}; host: {g.host}; guest: {g.guest}</Link></li>))) : "" }
                 </ul>
             </div>
         );
@@ -117,7 +140,7 @@ class Game extends React.Component {
                 db.collection('maps').add({
                     ts: firebase.firestore.FieldValue.serverTimestamp(),
                     owner: user.displayName,
-                    map: []
+                    map: EMPTY_MAP
                 }).then(m => {
                     db.collection('games').doc(this.props.match.params.id).set({
                         guest: user.displayName,
