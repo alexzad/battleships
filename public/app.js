@@ -121,10 +121,12 @@ class Login extends React.Component {
 class Game extends React.Component {
     constructor(props) {
         super(props);
-        this.state = { user: {}, map: EMPTY_MAP };
+        this.state = { user: {}, map: EMPTY_MAP, ships: [0, 0, 0, 0] };
         this.onAuthStateChanged = this.onAuthStateChanged.bind(this);          
         this.gameChanged = this.gameChanged.bind(this);          
         this.cellClick = this.cellClick.bind(this);
+        this.readyMap = this.cellClick.bind(this);
+        this.resetMap = this.cellClick.bind(this);
         firebase.auth().onAuthStateChanged(this.onAuthStateChanged); 
     }
 
@@ -176,9 +178,13 @@ class Game extends React.Component {
                     return a;
                 }
             }, 0);
-            if(c > 4) {
+            if(c > 4 || this.state.ships[c - 1] == 5 - c) {
                 return;
             }
+            if(c - 2 >= 0) {
+                this.state.ships[c - 2] -= 1;
+            }
+            this.state.ships[c - 1] += 1;
             this.fillRecursively(this.state.map, i, c)
             blockedNeighbours.forEach(m => {
                 if(i + m >= 0 
@@ -210,6 +216,14 @@ class Game extends React.Component {
             }
         });
     }
+
+    readyMap() {
+
+    }
+
+    resetMap() {
+        this.setState({map: EMPTY_MAP});
+    }
     
     render() {
         return (
@@ -217,13 +231,35 @@ class Game extends React.Component {
                 <div><Link to="/">Back to lobby</Link></div>
                 <div>Game: {this.props.match.params.id}</div>
                 <div>Palyer: {this.state.user.displayName}</div>
-                <div className="container">
-                    {this.state.map.map((c, i) => {
-                        return (
-                            <div className={"cell color-"+c} onClick={() => this.cellClick(i)} key={i}>{c}</div>
-                        );
-                    })}
-                </div>
+                <table>
+                    <tbody>
+                        <tr className="stats">
+                            <td>
+                                {this.state.ships[3]}/1<br/><img src="/img/carrier.png" />
+                            </td>
+                            <td>
+                                {this.state.ships[2]}/2<br/><img src="/img/sub.png" />
+                            </td>
+                            <td>
+                                {this.state.ships[1]}/3<br/><img src="/img/battleship.png" />
+                            </td>
+                            <td>
+                                {this.state.ships[0]}/4<br/><img src="/img/cruiser.png" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colSpan="4">
+                                <div className="container">
+                                    {this.state.map.map((c, i) => {
+                                        return (
+                                            <div className={"cell color-"+c} onClick={() => this.cellClick(i)} key={i}></div>
+                                        );
+                                    })}
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         );
     }

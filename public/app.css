@@ -25,9 +25,13 @@ div.container {
 }
 
 .color-9 {
-    background: purple;
+    background: blue;
 }
 
 .color-1, .color-2, .color-3, .color-4, .color-5 {
     background: silver;
+}
+
+tr.stats td {
+    text-align: center;
 }
